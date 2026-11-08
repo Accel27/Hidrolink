@@ -1,16 +1,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Truck, ServiceRequest } from '@/types';
+import { Truck, ServiceRequest, Message } from '@/types';
 import { mockTrucks } from '@/mocks/trucks';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type AppContextType = {
   trucks: Truck[];
   requests: ServiceRequest[];
+  messages: Message[];
   createRequest: (request: ServiceRequest) => void;
   updateRequestStatus: (id: string, status: ServiceRequest['status']) => void;
   rateRequest: (requestId: string, truckId: string, stars: number) => void;
   clearRequests: () => void;
-  toggleTruckAvailability: (truckId: string, isActive: boolean) => void; // <-- NUEVO
+  toggleTruckAvailability: (truckId: string, isActive: boolean) => void;
+  sendMessage: (requestId: string, senderId: 'client' | 'driver', text: string) => void;
+  markMessagesAsRead: (requestId: string, currentRole: 'client' | 'driver') => void;
 };
 
 const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -18,16 +21,26 @@ const AppContext = createContext<AppContextType>({} as AppContextType);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [trucks, setTrucks] = useState<Truck[]>(mockTrucks);
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   useEffect(() => {
-    AsyncStorage.getItem('@hidrolink_requests').then(data => {
-      if (data) setRequests(JSON.parse(data));
-    });
+    const loadData = async () => {
+      const reqData = await AsyncStorage.getItem('@hidrolink_requests');
+      if (reqData) setRequests(JSON.parse(reqData));
+      
+      const msgData = await AsyncStorage.getItem('@hidrolink_messages');
+      if (msgData) setMessages(JSON.parse(msgData));
+    };
+    loadData();
   }, []);
 
   useEffect(() => {
     AsyncStorage.setItem('@hidrolink_requests', JSON.stringify(requests));
   }, [requests]);
+
+  useEffect(() => {
+    AsyncStorage.setItem('@hidrolink_messages', JSON.stringify(messages));
+  }, [messages]);
 
   const createRequest = (request: ServiceRequest) => {
     setRequests(prev => [request, ...prev]);
@@ -55,13 +68,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
-  // NUEVA FUNCIÓN: Cambia el estado del camión globalmente
   const toggleTruckAvailability = (truckId: string, isActive: boolean) => {
     setTrucks(prev => prev.map(t => t.id === truckId ? { ...t, isActive } : t));
   };
 
+  const sendMessage = (requestId: string, senderId: 'client' | 'driver', text: string) => {
+    if (!text.trim()) return;
+    const newMessage: Message = {
+      id: Math.random().toString(),
+      requestId,
+      senderId,
+      text,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+    };
+    setMessages(prev => [...prev, newMessage]);
+  };
+
+  const markMessagesAsRead = (requestId: string, currentRole: 'client' | 'driver') => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.requestId === requestId && msg.senderId !== currentRole && !msg.isRead) {
+        return { ...msg, isRead: true };
+      }
+      return msg;
+    }));
+  };
+
   return (
-    <AppContext.Provider value={{ trucks, requests, createRequest, updateRequestStatus, rateRequest, clearRequests, toggleTruckAvailability }}>
+    <AppContext.Provider value={{ 
+      trucks,
+      requests, 
+      messages,
+      createRequest,
+      updateRequestStatus, 
+      rateRequest, 
+      clearRequests, 
+      toggleTruckAvailability,
+      sendMessage,
+      markMessagesAsRead
+    }}>
       {children}
     </AppContext.Provider>
   );

@@ -2,34 +2,33 @@ import { View, Text, FlatList } from 'react-native';
 import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { TruckCard } from '@/components/TruckCard';
-import { RealMap } from '@/components/RealMap'; // <-- Importamos el mapa nuevo
+import { RealMap } from '@/components/RealMap';
 import { useApp } from '@/contexts/AppContext';
 import { colors, spacing, typography } from '@/theme';
 
 export default function ClientHome() {
   const { trucks } = useApp();
-  
-  // Filtramos los camiones activos una sola vez para usarlo en el mapa y en la lista
   const activeTrucks = trucks.filter(t => t.isActive);
 
   return (
-    <Screen style={{ padding: 0 }}>
+    <Screen style={{ padding: 0, backgroundColor: colors.background }}>
       
-      {/* 1. EL MAPA REAL DE LEAFLET (Reemplaza al MapView y Location) */}
+      {/* 1. MAPA FIJO */}
       <RealMap trucks={activeTrucks} height={380} />
 
-      {/* 2. LA LISTA DE CAMIONES */}
+      {/* 2. TÍTULOS FIJOS */}
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm }}>
+        <Text style={typography.h2}>Hola, Cliente 👋</Text>
+        <Text style={typography.bodySm}>Encuentra agua cerca de ti</Text>
+        <Text style={[typography.h3, { marginTop: spacing.md }]}>Camiones disponibles</Text>
+      </View>
+
+      {/* 3. SOLO LA LISTA TIENE SCROLL */}
       <FlatList
         data={activeTrucks}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}
-        ListHeaderComponent={() => (
-          <View style={{ marginBottom: spacing.md }}>
-            <Text style={typography.h2}>Hola, Cliente 👋</Text>
-            <Text style={typography.bodySm}>Encuentra agua cerca de ti</Text>
-            <Text style={[typography.h3, { marginTop: spacing.lg }]}>Camiones disponibles</Text>
-          </View>
-        )}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.md }}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
           <TruckCard 
             truck={item} 

@@ -18,6 +18,7 @@ export default function RootLayout() {
           <Stack.Screen name="truck/[id]" />
           <Stack.Screen name="request/[id]" />
           <Stack.Screen name="rate/[id]" />
+          <Stack.Screen name="chat/[id]" />
         </Stack>
       </AppProvider>
     </AuthProvider>

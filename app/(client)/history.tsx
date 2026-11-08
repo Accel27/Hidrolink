@@ -1,12 +1,13 @@
 import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
-import { router } from 'expo-router'; // <-- Importante
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useApp } from '@/contexts/AppContext';
 import { colors, spacing, typography, radius } from '@/theme';
 
 export default function ClientHistory() {
-  const { requests, clearRequests } = useApp();
+  // Traemos tambien los mensajes
+  const { requests, clearRequests, messages } = useApp(); 
 
   return (
     <Screen>
@@ -14,7 +15,6 @@ export default function ClientHistory() {
         <Text style={typography.h2}>Mis Pedidos</Text>
         {requests.length > 0 && (
           <Pressable onPress={clearRequests}>
-            {/* CAMBIAMOS EL TEXTO AQUÍ */}
             <Text style={{ color: colors.danger, fontWeight: '600' }}>Limpiar Finalizados</Text>
           </Pressable>
         )}
@@ -31,48 +31,69 @@ export default function ClientHistory() {
         <FlatList
           data={requests}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ gap: spacing.md }}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <View style={styles.row}>
-                <Text style={typography.h3}>{item.pipasRequested} pipas de agua</Text>
-                <Text style={styles.price}>${item.totalPrice.toFixed(2)}</Text>
-              </View>
-              <Text style={typography.bodySm}>Camión: {item.truckPlate}</Text>
-              
-              <View style={styles.statusRow}>
-                <Text style={typography.caption}>Estado:</Text>
-                <View style={[
-                  styles.badge, 
-                  { backgroundColor: item.status === 'pending' ? colors.warning : 
-                                     item.status === 'accepted' ? colors.primary : 
-                                     item.status === 'cancelled' ? colors.danger : colors.success }
-                ]}>
-                  <Text style={styles.badgeText}>
-                    {item.status === 'pending' ? 'Pendiente' : 
-                     item.status === 'accepted' ? 'En camino' : 
-                     item.status === 'cancelled' ? 'Cancelado' : 'Entregado'}
-                  </Text>
-                </View>
-              </View>
+          contentContainerStyle={{ gap: spacing.md, paddingBottom: spacing.xl }}
+          renderItem={({ item }) => {
+            // Calculamos los no leidos (que no sean mios y no esten leidos)
+            const unreadCount = messages.filter(m => m.requestId === item.id && m.senderId !== 'client' && !m.isRead).length;
 
-              {/* BOTÓN DE CALIFICAR SI YA FUE ENTREGADO */}
-              {item.status === 'completed' && (
-                <View style={{ marginTop: spacing.sm, borderTopWidth: 1, borderColor: colors.border, paddingTop: spacing.sm }}>
-                  {item.isRated ? (
-                    <Text style={{ color: colors.success, fontWeight: '600', textAlign: 'center' }}>✓ Servicio Calificado</Text>
-                  ) : (
-                    <Pressable 
-                      style={{ backgroundColor: colors.accent, padding: spacing.sm, borderRadius: radius.md, alignItems: 'center' }}
-                      onPress={() => router.push(`/rate/${item.id}`)}
-                    >
-                      <Text style={{ color: colors.white, fontWeight: '700' }}>Calificar Servicio</Text>
-                    </Pressable>
-                  )}
+            return (
+              <View style={styles.card}>
+                <View style={styles.row}>
+                  <Text style={typography.h3}>{item.pipasRequested} pipas de agua</Text>
+                  <Text style={styles.price}>${item.totalPrice.toFixed(2)}</Text>
                 </View>
-              )}
-            </View>
-          )}
+                <Text style={typography.bodySm}>Camión: {item.truckPlate}</Text>
+                
+                <View style={styles.statusRow}>
+                  <Text style={typography.caption}>Estado:</Text>
+                  <View style={[
+                    styles.badge, 
+                    { backgroundColor: item.status === 'pending' ? colors.warning : 
+                                       item.status === 'accepted' ? colors.primary : 
+                                       item.status === 'cancelled' ? colors.danger : colors.success }
+                  ]}>
+                    <Text style={styles.badgeText}>
+                      {item.status === 'pending' ? 'Pendiente' : 
+                       item.status === 'accepted' ? 'En camino' : 
+                       item.status === 'cancelled' ? 'Cancelado' : 'Entregado'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* BOTON DE CHAT CON NOTIFICACION */}
+                {item.status === 'accepted' && (
+                  <Pressable 
+                    onPress={() => router.push(`/chat/${item.id}`)}
+                    style={{ marginTop: spacing.sm, backgroundColor: colors.primaryLight, padding: spacing.sm, borderRadius: radius.md, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                  >
+                    <Ionicons name="chatbubbles" size={18} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontWeight: '600' }}>Chatear con el Conductor</Text>
+                    {/* EL BADGE ROJO */}
+                    {unreadCount > 0 && (
+                      <View style={styles.notificationBadge}>
+                        <Text style={styles.notificationText}>{unreadCount}</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                )}
+
+                {item.status === 'completed' && (
+                  <View style={{ marginTop: spacing.sm, borderTopWidth: 1, borderColor: colors.border, paddingTop: spacing.sm }}>
+                    {item.isRated ? (
+                      <Text style={{ color: colors.success, fontWeight: '600', textAlign: 'center' }}>✓ Servicio Calificado</Text>
+                    ) : (
+                      <Pressable 
+                        style={{ backgroundColor: colors.accent, padding: spacing.sm, borderRadius: radius.md, alignItems: 'center' }}
+                        onPress={() => router.push(`/rate/${item.id}`)}
+                      >
+                        <Text style={{ color: colors.white, fontWeight: '700' }}>Calificar Servicio</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          }}
         />
       )}
     </Screen>
@@ -86,4 +107,7 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full },
   badgeText: { fontSize: 11, fontWeight: '700', color: colors.white },
+  // ESTILOS DEL BADGE ROJO
+  notificationBadge: { backgroundColor: colors.danger, borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  notificationText: { color: colors.white, fontSize: 11, fontWeight: 'bold' },
 });

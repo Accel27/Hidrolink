@@ -37,3 +37,12 @@ export type ServiceRequest = {
   clientLat: number;
   clientLng: number;
 };
+
+export type Message = {
+  id: string;
+  requestId: string; // El chat está atado a un pedido específico
+  senderId: 'client' | 'driver';
+  text: string;
+  createdAt: string;
+  isRead: boolean;
+};

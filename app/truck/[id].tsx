@@ -48,9 +48,8 @@ export default function TruckDetail() {
             <Text style={typography.body}>Precio por pipa</Text>
             <Text style={styles.price}>${truck.pricePerPipa.toFixed(2)}</Text>
           </View>
-          <Text style={typography.caption}>Capacidad máxima: {truck.capacityPipas} pipas</Text>
+          <Text style={typography.caption}>Pipa de 200 litros aproximadamente.</Text>
         </View>
-
         <Button 
           label="Solicitar Servicio" 
             onPress={() => router.push(`/request/${truck.id}`)}
