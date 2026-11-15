@@ -4,23 +4,22 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
-import { useApp } from '@/contexts/AppContext'; // <-- NUEVO
+import { useApp } from '@/contexts/AppContext';
 import { colors, spacing, typography, radius } from '@/theme';
 
 export default function RequestScreen() {
   const { id } = useLocalSearchParams();
-  const { trucks, createRequest } = useApp(); // <-- NUEVO
+  const { trucks, createRequest } = useApp();
   const truck = trucks.find(t => t.id === id) || trucks[0];
 
-  const [pipas, setPipas] = useState('10'); // Ahora sí dejamos escribir
+  const [pipas, setPipas] = useState('10'); 
   const total = Number(pipas || 0) * truck.pricePerPipa;
 
-  const handleConfirm = () => {
-    // Creamos el pedido real
+  const handleConfirm = async () => {
     const randomLat = 10.6427 + (Math.random() - 0.5) * 0.02;
     const randomLng = -71.6125 + (Math.random() - 0.5) * 0.02;
-    createRequest({
-      id: Math.random().toString(), // ID aleatorio
+
+    await createRequest({
       clientName: 'Cliente Demo',
       clientAddress: 'Maracaibo, Zulia',
       truckPlate: truck.plate,
@@ -28,12 +27,11 @@ export default function RequestScreen() {
       pipasRequested: Number(pipas),
       totalPrice: total,
       status: 'pending',
-      createdAt: new Date().toISOString(),
       clientLat: randomLat,
       clientLng: randomLng,
     });
     
-    router.replace('/(client)/history'); // Lo enviamos al historial
+    router.replace('/(client)/history'); 
   };
 
   return (
@@ -56,7 +54,7 @@ export default function RequestScreen() {
             style={styles.input}
             keyboardType="numeric"
             value={pipas}
-            onChangeText={setPipas} // Ahora sí es funcional
+            onChangeText={setPipas} 
           />
         </View>
 

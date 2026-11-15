@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
@@ -6,8 +6,7 @@ import { useApp } from '@/contexts/AppContext';
 import { colors, spacing, typography, radius } from '@/theme';
 
 export default function ClientHistory() {
-  // Traemos tambien los mensajes
-  const { requests, clearRequests, messages } = useApp(); 
+  const { requests, clearRequests, messages, refreshTrucks, isRefreshing } = useApp(); 
 
   return (
     <Screen>
@@ -24,7 +23,7 @@ export default function ClientHistory() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Ionicons name="water-outline" size={60} color={colors.textMuted} />
           <Text style={[typography.body, { color: colors.textMuted, marginTop: spacing.md }]}>
-            Aún no has solicitado agua.
+            Aun no has solicitado agua.
           </Text>
         </View>
       ) : (
@@ -32,8 +31,10 @@ export default function ClientHistory() {
           data={requests}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ gap: spacing.md, paddingBottom: spacing.xl }}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={() => refreshTrucks(true)} colors={[colors.primary]} />
+          }
           renderItem={({ item }) => {
-            // Calculamos los no leidos (que no sean mios y no esten leidos)
             const unreadCount = messages.filter(m => m.requestId === item.id && m.senderId !== 'client' && !m.isRead).length;
 
             return (
@@ -42,7 +43,7 @@ export default function ClientHistory() {
                   <Text style={typography.h3}>{item.pipasRequested} pipas de agua</Text>
                   <Text style={styles.price}>${item.totalPrice.toFixed(2)}</Text>
                 </View>
-                <Text style={typography.bodySm}>Camión: {item.truckPlate}</Text>
+                <Text style={typography.bodySm}>Camion: {item.truckPlate}</Text>
                 
                 <View style={styles.statusRow}>
                   <Text style={typography.caption}>Estado:</Text>
@@ -60,7 +61,6 @@ export default function ClientHistory() {
                   </View>
                 </View>
 
-                {/* BOTON DE CHAT CON NOTIFICACION */}
                 {item.status === 'accepted' && (
                   <Pressable 
                     onPress={() => router.push(`/chat/${item.id}`)}
@@ -68,7 +68,6 @@ export default function ClientHistory() {
                   >
                     <Ionicons name="chatbubbles" size={18} color={colors.primary} />
                     <Text style={{ color: colors.primary, fontWeight: '600' }}>Chatear con el Conductor</Text>
-                    {/* EL BADGE ROJO */}
                     {unreadCount > 0 && (
                       <View style={styles.notificationBadge}>
                         <Text style={styles.notificationText}>{unreadCount}</Text>
@@ -80,7 +79,7 @@ export default function ClientHistory() {
                 {item.status === 'completed' && (
                   <View style={{ marginTop: spacing.sm, borderTopWidth: 1, borderColor: colors.border, paddingTop: spacing.sm }}>
                     {item.isRated ? (
-                      <Text style={{ color: colors.success, fontWeight: '600', textAlign: 'center' }}>✓ Servicio Calificado</Text>
+                      <Text style={{ color: colors.success, fontWeight: '600', textAlign: 'center' }}>Servicio Calificado</Text>
                     ) : (
                       <Pressable 
                         style={{ backgroundColor: colors.accent, padding: spacing.sm, borderRadius: radius.md, alignItems: 'center' }}
@@ -107,7 +106,6 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full },
   badgeText: { fontSize: 11, fontWeight: '700', color: colors.white },
-  // ESTILOS DEL BADGE ROJO
   notificationBadge: { backgroundColor: colors.danger, borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   notificationText: { color: colors.white, fontSize: 11, fontWeight: 'bold' },
 });
