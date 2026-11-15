@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useApp } from '@/contexts/AppContext';
@@ -10,7 +11,6 @@ export default function AdminDashboard() {
   const totalTrucks = trucks.length;
   const totalRequests = requests.length;
   
-  // Cálculos para los gráficos
   const completed = requests.filter(r => r.status === 'completed').length;
   const pending = requests.filter(r => r.status === 'pending').length;
   const cancelled = requests.filter(r => r.status === 'cancelled').length;
@@ -19,18 +19,32 @@ export default function AdminDashboard() {
     .filter(r => r.status === 'completed')
     .reduce((sum, req) => sum + req.totalPrice, 0);
 
-  // Función para calcular el ancho de la barra (porcentaje)
   const getBarWidth = (count: number) => {
     if (totalRequests === 0) return '0%';
     return `${(count / totalRequests) * 100}%`;
   };
 
   return (
-    <Screen>
-      <ScrollView contentContainerStyle={{ gap: spacing.lg, paddingBottom: spacing.xl }}>
-        <Text style={typography.h2}>Panel de Control</Text>
+    <Screen style={{ padding: 0, backgroundColor: colors.background }}>
+      
+      {/* HEADER DEL ADMINISTRADOR */}
+      <View style={styles.header}>
+        <View style={styles.userInfo}>
+          <View style={styles.avatar}>
+            <Ionicons name="shield-checkmark" size={20} color={colors.white} />
+          </View>
+          <View>
+            <Text style={typography.caption}>Administrador</Text>
+            <Text style={typography.h3}>Control General</Text>
+          </View>
+        </View>
+        <Pressable style={styles.iconButton} onPress={() => router.push('/(admin)/profile')}>
+          <Ionicons name="person-circle-outline" size={26} color={colors.textPrimary} />
+        </Pressable>
+      </View>
 
-        {/* TARJETAS DE MÉTRICAS */}
+      <ScrollView contentContainerStyle={{ gap: spacing.lg, padding: spacing.lg, paddingBottom: spacing.xxl }}>
+        {/* TARJETAS DE METRICAS */}
         <View style={styles.metricsRow}>
           <View style={styles.metricCard}>
             <Ionicons name="car" size={24} color={colors.primary} />
@@ -49,7 +63,7 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-        {/* GRÁFICO DE BARRAS CUSTOM */}
+        {/* GRAFICO DE BARRAS */}
         <View style={styles.chartCard}>
           <Text style={[typography.h3, { marginBottom: spacing.md }]}>Estado de los Pedidos</Text>
           
@@ -102,6 +116,25 @@ export default function AdminDashboard() {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
+  userInfo: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  avatar: {
+    width: 40, height: 40, borderRadius: radius.full,
+    backgroundColor: '#1E293B', // Color oscuro para el admin
+    alignItems: 'center', justifyContent: 'center',
+  },
+  iconButton: {
+    padding: spacing.sm, backgroundColor: colors.background, borderRadius: radius.full,
+  },
   metricsRow: { flexDirection: 'row', gap: spacing.sm },
   metricCard: { flex: 1, backgroundColor: colors.surface, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', gap: 4 },
   chartCard: { backgroundColor: colors.surface, padding: spacing.lg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },

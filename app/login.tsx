@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
@@ -17,7 +17,7 @@ export default function LoginScreen() {
     if (role === 'client') {
       router.replace('/(client)/home');
     } else if (role === 'driver') {
-      setTruckId('t1'); // <-- Asignamos el camión A12BC3D
+      setTruckId('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'); // <-- Asignamos el camion A12BC3D
       router.replace('/(driver)/home');
     } else {
       router.replace('/(admin)/dashboard');
@@ -28,7 +28,11 @@ export default function LoginScreen() {
     <Screen>
       <View style={styles.hero}>
         <View style={styles.logo}>
-          <Ionicons name="water" size={44} color={colors.white} />
+          <Image 
+            source={require('../assets/icon.png')} 
+            style={{ width: 88, height: 88, borderRadius: 20 }} 
+            resizeMode="contain"
+          />
         </View>
         <Text style={styles.brand}>Hidrolink</Text>
         <Text style={styles.tagline}>Agua a tu puerta, cuando la necesites</Text>

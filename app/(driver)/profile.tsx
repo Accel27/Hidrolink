@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,14 +11,13 @@ export default function DriverProfile() {
   const { truckId } = useAuth();
   const { trucks } = useApp();
   
-  // Buscamos los datos reales del camión del conductor logueado
   const myTruck = trucks.find(t => t.id === truckId);
 
   return (
     <Screen>
       <View style={styles.container}>
         <View style={styles.avatar}>
-          <Ionicons name="car" size={40} color={colors.white} />
+          <MaterialCommunityIcons name="tanker-truck" size={44} color={colors.white} />
         </View>
         <Text style={typography.h2}>José Pérez</Text>
         <Text style={typography.bodySm}>Camión: {myTruck?.plate || 'Cargando...'}</Text>
@@ -40,5 +39,5 @@ export default function DriverProfile() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', paddingTop: spacing.xxl, gap: spacing.sm },
-  avatar: { width: 80, height: 80, borderRadius: radius.full, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
+  avatar: { width: 90, height: 90, borderRadius: radius.full, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
 });

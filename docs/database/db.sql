@@ -1,104 +1,97 @@
--- Habilitar claves foráneas
-PRAGMA foreign_keys = ON;
-
--- 1. Tabla de Usuarios
-CREATE TABLE IF NOT EXISTS usuarios (
-    id TEXT PRIMARY KEY,
-    nombre_completo TEXT NOT NULL,
-    correo TEXT UNIQUE NOT NULL,
-    telefono TEXT NOT NULL,
-    contrasena_hash TEXT NOT NULL,
-    rol TEXT NOT NULL CHECK (rol IN ('cliente', 'conductor', 'admin')),
-    verificado INTEGER NOT NULL DEFAULT 0,
-    url_foto_perfil TEXT,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- 1. Tabla de Usuarios (Perfiles vinculados a Supabase Auth)
+CREATE TABLE public.users (
+    id UUID PRIMARY KEY, -- Se vinculara con el ID de Supabase Auth
+    full_name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    phone TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('client', 'driver', 'admin')),
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    avatar_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 2. Tabla de Camiones
-CREATE TABLE IF NOT EXISTS camiones (
-    id TEXT PRIMARY KEY,
-    id_conductor TEXT UNIQUE NOT NULL,
-    placa TEXT UNIQUE NOT NULL,
-    precio_por_pipa REAL NOT NULL,
-    capacidad_pipas INTEGER NOT NULL,
-    url_foto_camion TEXT,
-    activo INTEGER NOT NULL DEFAULT 1,
-    calificacion_promedio REAL DEFAULT 0.0,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_conductor) REFERENCES usuarios(id) ON DELETE CASCADE
+CREATE TABLE public.trucks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    driver_id UUID UNIQUE NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    plate TEXT UNIQUE NOT NULL,
+    price_per_pipa REAL NOT NULL,
+    capacity_pipas INTEGER NOT NULL,
+    photo_url TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    rating REAL DEFAULT 0.0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 3. Tabla de Ubicaciones en Tiempo Real de los Camiones
-CREATE TABLE IF NOT EXISTS ubicaciones_camiones (
-    id TEXT PRIMARY KEY,
-    id_camion TEXT UNIQUE NOT NULL,
-    latitud REAL NOT NULL,
-    longitud REAL NOT NULL,
-    ultima_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_camion) REFERENCES camiones(id) ON DELETE CASCADE
+-- 3. Tabla de Ubicaciones
+CREATE TABLE public.truck_locations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    truck_id UUID UNIQUE NOT NULL REFERENCES public.trucks(id) ON DELETE CASCADE,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 4. Tabla de Solicitudes de Servicio
-CREATE TABLE IF NOT EXISTS solicitudes_servicio (
-    id TEXT PRIMARY KEY,
-    id_cliente TEXT NOT NULL,
-    id_camion TEXT NOT NULL,
-    estado TEXT NOT NULL CHECK (estado IN ('pendiente', 'aceptado', 'en_camino', 'completado', 'cancelado')) DEFAULT 'pendiente',
-    latitud_cliente REAL NOT NULL,
-    longitud_cliente REAL NOT NULL,
-    direccion_cliente TEXT NOT NULL,
-    pipas_solicitadas INTEGER NOT NULL,
-    precio_total REAL NOT NULL,
-    calificado INTEGER NOT NULL DEFAULT 0,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_cliente) REFERENCES usuarios(id) ON DELETE CASCADE,
-    FOREIGN KEY (id_camion) REFERENCES camiones(id) ON DELETE CASCADE
+-- 4. Tabla de Solicitudes (Pedidos)
+CREATE TABLE public.service_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    truck_id UUID NOT NULL REFERENCES public.trucks(id) ON DELETE CASCADE,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'on_the_way', 'completed', 'cancelled')) DEFAULT 'pending',
+    client_lat REAL NOT NULL,
+    client_lng REAL NOT NULL,
+    client_address TEXT NOT NULL,
+    pipas_requested INTEGER NOT NULL,
+    total_price REAL NOT NULL,
+    is_rated BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 5. Tabla de Calificaciones y Reseñas
-CREATE TABLE IF NOT EXISTS calificaciones (
-    id TEXT PRIMARY KEY,
-    id_solicitud TEXT UNIQUE NOT NULL,
-    puntuacion INTEGER NOT NULL CHECK (puntuacion BETWEEN 1 AND 5),
-    comentario TEXT,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_solicitud) REFERENCES solicitudes_servicio(id) ON DELETE CASCADE
+-- 5. Tabla de Calificaciones
+CREATE TABLE public.ratings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    request_id UUID UNIQUE NOT NULL REFERENCES public.service_requests(id) ON DELETE CASCADE,
+    rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Índices para optimizar el rendimiento de búsqueda
-CREATE INDEX IF NOT EXISTS idx_camiones_activo ON camiones(activo);
-CREATE INDEX IF NOT EXISTS idx_solicitudes_cliente ON solicitudes_servicio(id_cliente);
-CREATE INDEX IF NOT EXISTS idx_solicitudes_camion ON solicitudes_servicio(id_camion);
-CREATE INDEX IF NOT EXISTS idx_solicitudes_estado ON solicitudes_servicio(estado);
+-- 6. TABLA NUEVA: Mensajes del Chat
+CREATE TABLE public.messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    request_id UUID NOT NULL REFERENCES public.service_requests(id) ON DELETE CASCADE,
+    sender_id TEXT NOT NULL CHECK (sender_id IN ('client', 'driver')),
+    text TEXT NOT NULL,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Trigger robusto: Actualiza automáticamente el promedio de estrellas del camión
-CREATE TRIGGER IF NOT EXISTS actualizar_calificacion_camion
-AFTER INSERT ON calificaciones
+-- Indices para velocidad
+CREATE INDEX idx_trucks_active ON public.trucks(is_active);
+CREATE INDEX idx_requests_client ON public.service_requests(client_id);
+CREATE INDEX idx_requests_status ON public.service_requests(status);
+CREATE INDEX idx_messages_request ON public.messages(request_id);
+
+-- Trigger para Postgres: Actualiza el promedio de estrellas del camion
+CREATE OR REPLACE FUNCTION update_truck_rating()
+RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE camiones
-    SET calificacion_promedio = (
-        SELECT AVG(c.puntuacion)
-        FROM calificaciones c
-        JOIN solicitudes_servicio s ON c.id_solicitud = s.id
-        WHERE s.id_camion = camiones.id
+    UPDATE public.trucks
+    SET rating = (
+        SELECT AVG(r.rating)
+        FROM public.ratings r
+        JOIN public.service_requests s ON r.request_id = s.id
+        WHERE s.truck_id = trucks.id
     )
     WHERE id = (
-        SELECT s.id_camion
-        FROM solicitudes_servicio s
-        WHERE s.id = NEW.id_solicitud
+        SELECT s.truck_id
+        FROM public.service_requests s
+        WHERE s.id = NEW.request_id
     );
+    RETURN NEW;
 END;
+$$ LANGUAGE plpgsql;
 
--- Vista analítica para el panel del Administrador
-CREATE VIEW IF NOT EXISTS vista_resumen_operativo AS
-    SELECT 
-        s.id AS id_solicitud,
-        s.fecha_creacion AS fecha,
-        u.nombre_completo AS cliente,
-        s.pipas_solicitadas AS pipas,
-        s.precio_total AS total,
-        s.estado AS estado_pedido,
-        c.placa AS camion_asignado
-    FROM solicitudes_servicio s
-    JOIN usuarios u ON s.id_cliente = u.id
-    JOIN camiones c ON s.id_camion = c.id;
+CREATE TRIGGER trigger_update_rating
+AFTER INSERT ON public.ratings
+FOR EACH ROW EXECUTE FUNCTION update_truck_rating();

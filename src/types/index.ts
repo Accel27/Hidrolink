@@ -40,7 +40,7 @@ export type ServiceRequest = {
 
 export type Message = {
   id: string;
-  requestId: string; // El chat está atado a un pedido específico
+  requestId: string; // El chat esta atado a un pedido especifico
   senderId: 'client' | 'driver';
   text: string;
   createdAt: string;

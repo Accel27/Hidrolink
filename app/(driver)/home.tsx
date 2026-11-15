@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet, Switch, Pressable, SectionList } from 'react-native';
+import { View, Text, StyleSheet, Switch, Pressable, SectionList, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { RealMap } from '@/components/RealMap';
@@ -8,43 +8,48 @@ import { Screen } from '@/components/Screen';
 import { colors, spacing, typography, radius } from '@/theme';
 
 export default function DriverHome() {
-  const { requests, updateRequestStatus, trucks, toggleTruckAvailability, messages } = useApp();
+  const { requests, updateRequestStatus, trucks, toggleTruckAvailability, messages, refreshTrucks, isRefreshing } = useApp();
   const { truckId } = useAuth();
 
   const myTruck = trucks.find(t => t.id === truckId);
-  const myPlate = myTruck ? myTruck.plate : 'Sin camión';
+  const myPlate = myTruck ? myTruck.plate : 'Sin camion';
   const isAvailable = myTruck?.isActive || false; 
 
   const myRequests = requests.filter(r => r.truckId === truckId);
   const pendingRequests = myRequests.filter(r => r.status === 'pending');
   const acceptedRequests = myRequests.filter(r => r.status === 'accepted');
 
-  // 1. Agrupamos los datos en secciones con sus títulos
   const sections = [
     { title: 'En Camino', data: acceptedRequests },
     { title: 'Solicitudes Pendientes', data: pendingRequests },
-  ].filter(sec => sec.data.length > 0); // Ocultamos la sección si está vacía
+  ].filter(sec => sec.data.length > 0);
 
   return (
-    <Screen style={{ padding: 0 }}>
+    <Screen style={{ padding: 0, backgroundColor: colors.background }}>
       
-      {/* MAPA FIJO */}
+      <View style={styles.header}>
+        <View style={styles.userInfo}>
+          <View style={styles.avatar}>
+            <MaterialCommunityIcons name="tanker-truck" size={22} color={colors.white} />
+          </View>
+          <View>
+            <Text style={typography.caption}>Conductor</Text>
+            <Text style={typography.h3}>Jose Perez</Text>
+          </View>
+        </View>
+        <Pressable style={styles.iconButton} onPress={() => router.push('/(driver)/profile')}>
+          <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
+        </Pressable>
+      </View>
+
       <RealMap 
         trucks={isAvailable && myTruck ? [myTruck] : []} 
-        height={350} 
+        height={320} 
         isDriverView={isAvailable}
         requests={isAvailable ? [...pendingRequests, ...acceptedRequests] : acceptedRequests} 
       />
 
-      {/* HEADER Y SWITCH FIJOS */}
-      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: spacing.md }}>
-        <View style={styles.header}>
-          <View>
-            <Text style={typography.h2}>Panel Conductor</Text>
-            <Text style={typography.bodySm}>Camión: {myPlate}</Text>
-          </View>
-        </View>
-
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg }}>
         <View style={styles.toggleCard}>
           <View>
             <Text style={typography.h3}>Estado de servicio</Text>
@@ -58,29 +63,26 @@ export default function DriverHome() {
         </View>
       </View>
 
-      {/* LISTA CON SECCIONES (Títulos + Tarjetas) */}
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xl }}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
-        
-        // Renderiza los títulos ("En Camino", "Solicitudes Pendientes")
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={() => refreshTrucks(true)} colors={[colors.primary]} />
+        }
         renderSectionHeader={({ section: { title } }) => (
-          <Text style={[typography.h3, { marginTop: spacing.md, marginBottom: spacing.sm, color: title === 'En Camino' ? colors.primary : colors.textPrimary }]}>
+          <Text style={[typography.h3, { marginTop: spacing.sm, marginBottom: spacing.sm, color: title === 'En Camino' ? colors.primary : colors.textPrimary }]}>
             {title}
           </Text>
         )}
-
-        // Renderiza las tarjetas
         renderItem={({ item: req }) => {
           const isAccepted = req.status === 'accepted';
           const unreadCount = messages.filter(m => m.requestId === req.id && m.senderId !== 'driver' && !m.isRead).length;
 
           return (
             <View style={[styles.requestCard, isAccepted && { borderColor: colors.primary, marginBottom: spacing.md }]}>
-              
               <View style={styles.row}>
                 <Text style={typography.body}>{req.clientName}</Text>
                 <Text style={styles.price}>${req.totalPrice.toFixed(2)}</Text>
@@ -124,10 +126,9 @@ export default function DriverHome() {
           );
         }}
 
-        // Si no hay pedidos en absoluto
         ListEmptyComponent={() => (
           <Text style={[typography.bodySm, { textAlign: 'center', marginTop: spacing.xl }]}>
-            {!isAvailable ? 'Actívate para recibir solicitudes.' : 'No hay solicitudes nuevas por ahora.'}
+            {!isAvailable ? 'Activate para recibir solicitudes.' : 'No hay solicitudes nuevas por ahora.'}
           </Text>
         )}
       />
@@ -136,7 +137,17 @@ export default function DriverHome() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
+    backgroundColor: colors.surface, borderBottomWidth: 1, borderColor: colors.border,
+  },
+  userInfo: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  avatar: {
+    width: 40, height: 40, borderRadius: radius.full,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  iconButton: { padding: spacing.sm, backgroundColor: colors.background, borderRadius: radius.full },
   toggleCard: { backgroundColor: colors.surface, padding: spacing.lg, borderRadius: radius.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
   requestCard: { backgroundColor: colors.surface, padding: spacing.lg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, gap: spacing.sm, marginBottom: spacing.md },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
